@@ -1,0 +1,574 @@
+# Network Security Runbook for SOC Analysts
+
+## Purpose
+Quick reference guide for investigating and responding to network security incidents.
+
+---
+
+**  Common Network Alerts & Response
+
+** 1. Suspicious Outbound Connection
+
+**Alert Indicators:**
+- Connection to unknown/suspicious IP or domain
+- Unusual port usage (non-standard ports)
+- Connection to known malicious infrastructure
+- Outbound traffic on uncommon protocols
+
+**Investigation Steps:**
+1. **Identify the source system**
+   ```
+   Check SIEM: src_ip=[IP] | table src_ip, src_host, user
+   ```
+
+2. **Check destination reputation**
+   - VirusTotal: https://www.virustotal.com
+   - AbuseIPDB: https://www.abuseipdb.com
+   - Cisco Talos: https://talosintelligence.com
+   - AlienVault OTX: https://otx.alienvault.com
+
+3. **Review connection details**
+   - Destination IP and port
+   - Protocol used (HTTP, HTTPS, DNS, Custom)
+   - Volume of data transferred
+   - Duration and frequency
+   - Time of connection (business hours vs. off-hours)
+
+4. **Check for C2 behavior patterns**
+   - Regular beaconing (every X minutes)
+   - Consistent packet sizes
+   - Encrypted traffic to suspicious destinations
+   - DNS tunneling indicators
+
+**Response Actions:**
+- **Low Risk**: Document and monitor, add to watchlist
+- **Medium Risk**: Block at firewall, notify endpoint team
+- **High Risk**: Isolate system immediately, block IP globally, escalate
+
+-----------------------------------------------------------------------
+
+** 2. Port Scanning Activity
+
+**Alert Indicators:**
+- Multiple connection attempts to different ports
+- Failed connection attempts from single source
+- Sequential or random port probing
+- SYN flood patterns
+
+**Investigation Steps:**
+1. **Identify the scanner**
+   ......
+   index=firewall | stats count by src_ip, dest_port | where count > 20
+   .....
+
+2. **Determine scope**
+   - Is it internal or external scanning?
+   - How many ports were scanned?
+   - Which systems were targeted?
+   - What services were probed?
+
+3. **Check for authorized activity**
+   - Vulnerability scanning schedule
+   - Penetration testing engagement
+   - Authorized security tools
+
+4. **Look for follow-up exploitation**
+   - Successful connections after scan
+   - Service banner grabbing
+   - Exploitation attempts
+
+**Response Actions:**
+- **Internal Source**: Verify authorized scanning, investigate if unauthorized
+- **External Source**: Block source IP at perimeter firewall
+- **Targeted Scan**: Alert system owners, check for vulnerabilities
+- **Widespread Scan**: Consider DDoS precursor, enable rate limiting
+
+-----------------------------------------------------------------
+
+** 3. Data Exfiltration (Large Outbound Transfer)
+
+**Alert Indicators:**
+- Unusually large data transfer volume
+- Data transfer to cloud storage services
+- File uploads to unknown destinations
+- Off-hours large transfers
+
+**Investigation Steps:**
+1. **Identify the details**
+   ...
+   index=proxy bytes_out > 100000000 | table user, src_ip, dest, bytes_out, url
+   ...
+
+2. **Check user and system context**
+   - User's job role and data access level
+   - Normal data transfer patterns
+   - Recent user account activity
+   - System purpose and sensitivity
+
+3. **Analyze destination**
+   - Cloud storage (Dropbox, Google Drive, OneDrive)
+   - Personal email services
+   - File transfer sites (WeTransfer, etc.)
+   - Unknown external servers
+
+4. **Review file types**
+   - Compressed archives (.zip, .rar, .7z)
+   - Database dumps
+   - Document files (.pdf, .docx, .xlsx)
+   - Source code repositories
+
+**Response Actions:**
+- **Verify legitimacy**: Contact user immediately
+- **If unauthorized**: Block destination, preserve evidence, isolate system
+- **If confirmed malicious**: Incident response, legal notification, forensics
+- **Document**: File types, volume, destination, timeline
+
+-------------------------------------------------------------------------------
+
+** 4. DDoS Attack
+
+**Alert Indicators:**
+- Service degradation or unavailability
+- Massive spike in traffic volume
+- High connection rate from multiple sources
+- Resource exhaustion (CPU, bandwidth, memory)
+
+**Investigation Steps:**
+1. **Identify attack type**
+   - Volumetric (UDP flood, ICMP flood)
+   - Protocol (SYN flood, fragmentation)
+   - Application layer (HTTP flood, slowloris)
+
+2. **Check traffic patterns**
+   ..
+   index=firewall | timechart span=1m count by src_ip | where count > 1000
+   ..
+
+3. **Identify attack sources**
+   - Single source or distributed?
+   - Geographic distribution
+   - Source IP patterns
+   - Botnet indicators
+
+4. **Assess impact**
+   - Which services are affected?
+   - User impact severity
+   - Business function disruption
+
+**Response Actions:**
+- **Immediate**: Engage DDoS mitigation service (Cloudflare, Akamai)
+- **Short-term**: Enable rate limiting, block attack sources
+- **Communication**: Notify stakeholders, provide status updates
+- **Escalate**: Security manager, network team, ISP if needed
+
+--------------------------------------------------------------------------
+
+** 5. Unauthorized Access Attempt
+
+**Alert Indicators:**
+- Access attempts to restricted resources
+- Failed authentication to network devices
+- Privilege escalation attempts
+- Lateral movement indicators
+
+**Investigation Steps:**
+1. **Identify access details**
+   ...
+   index=network_auth action=failure | stats count by src_ip, dest_ip, user
+   ...
+
+2. **Check target system**
+   - System criticality
+   - Services running
+   - Current patch level
+   - Known vulnerabilities
+
+3. **Review authentication logs**
+   - Number of attempts
+   - Usernames tried
+   - Time pattern
+   - Success vs. failure ratio
+
+4. **Look for successful access**
+   - Any successful logins?
+   - Commands executed
+   - Files accessed
+   - Configuration changes
+
+**Response Actions:**
+- **Failed only**: Block source IP, monitor for persistence
+- **Successful access**: Isolate system, force credential reset, forensic analysis
+- **Ongoing**: Enable lockout policies, add MFA
+- **Escalate**: For admin account compromise or critical systems
+
+---------------------------------------------------------------------------------
+
+** 6. DNS Anomalies
+
+**Alert Indicators:**
+- DNS queries to suspicious domains
+- High volume of DNS requests
+- DNS tunneling behavior
+- DGA (Domain Generation Algorithm) patterns
+
+**Investigation Steps:**
+1. **Analyze DNS queries**
+   ...
+   index=dns | stats count by query, src_ip | sort -count
+   ...
+
+2. **Check domain reputation**
+   - Newly registered domains (< 30 days)
+   - Domain length and randomness
+   - TLD reputation (.tk, .ml, .ga)
+   - WHOIS information
+
+3. **Identify DNS tunneling**
+   - Unusually long subdomain names
+   - High query frequency to single domain
+   - Large DNS response sizes
+   - Base64-encoded subdomains
+
+4. **Check for malware C2**
+   - Randomized domain patterns (DGA)
+   - Fast flux DNS
+   - Connection correlation with other alerts
+
+**Response Actions:**
+- **Malicious domain**: Block at DNS resolver, isolate requesting system
+- **DNS tunneling**: Block domain, investigate data exfiltration
+- **DGA activity**: Malware likely present, endpoint isolation required
+- **Mass queries**: Check for DNS amplification attack
+
+-------------------------------------------------------------------------------------
+
+## 🔍 Network Investigation Toolkit
+
+### Essential Commands
+
+#### Check Active Connections
+```bash
+# Windows
+netstat -ano | findstr ESTABLISHED
+Get-NetTCPConnection | Where-Object {$_.State -eq "Established"}
+
+# Linux
+netstat -antup | grep ESTABLISHED
+ss -tunapl | grep ESTABLISHED
+```
+
+#### DNS Lookups
+```bash
+# Forward lookup
+nslookup suspicious-domain.com
+dig suspicious-domain.com
+
+# Reverse lookup
+nslookup [IP_ADDRESS]
+dig -x [IP_ADDRESS]
+
+# DNS record types
+dig suspicious-domain.com ANY
+...
+
+#### Network Connectivity Tests
+```bash
+# Ping test
+ping -n 4 [IP_ADDRESS]
+ping -c 4 [IP_ADDRESS]  # Linux
+
+# Trace route
+tracert [IP_ADDRESS]  # Windows
+traceroute [IP_ADDRESS]  # Linux
+
+# Port test
+Test-NetConnection -ComputerName [IP] -Port [PORT]  # PowerShell
+nc -zv [IP] [PORT]  # Linux
+telnet [IP] [PORT]
+...
+
+#### Packet Capture
+... bash
+# tcpdump - Linux
+tcpdump -i eth0 -nn host [IP_ADDRESS]
+tcpdump -i eth0 -nn port [PORT] -w capture.pcap
+
+# Wireshark filters
+ip.addr == [IP_ADDRESS]
+tcp.port == [PORT]
+dns.qry.name contains "suspicious"
+http.request.method == "POST"
+```
+
+#### Firewall Queries
+```bash
+# Check firewall rules (Linux iptables)
+iptables -L -n -v
+
+# Windows Firewall
+netsh advfirewall firewall show rule name=all
+
+# Block IP
+netsh advfirewall firewall add rule name="Block IP" dir=in action=block remoteip=[IP]
+...
+
+---------------------------------------------------------------------------------------
+
+## SIEM Query Examples
+
+### Traffic Volume Analysis
+...
+index=firewall 
+| stats sum(bytes_out) as total_bytes by src_ip, dest_ip 
+| where total_bytes > 1000000000 
+| sort -total_bytes
+...
+
+### Connection Frequency
+...
+index=firewall action=allowed 
+| stats count by src_ip, dest_ip, dest_port 
+| where count > 100
+| sort -count
+...
+
+### Rare Destinations
+...
+index=firewall 
+| rare dest_ip limit=20
+| where count < 5
+...
+
+### Failed Connections
+...
+index=firewall action=blocked 
+| stats count by src_ip, dest_port 
+| where count > 50
+| sort -count
+...
+
+### Protocol Analysis
+...
+index=network 
+| stats count by protocol 
+| where protocol NOT IN ("tcp", "udp", "icmp")
+...
+
+### Beaconing Detection
+...
+index=firewall dest_ip=[SUSPICIOUS_IP]
+| bucket _time span=1m
+| stats count by _time, src_ip
+| where count > 0
+...
+
+-----------------------------------------------------------------------
+
+## Network IOCs to Track
+
+### Suspicious Indicators
+
+**IP Addresses:**
+- Known C2 servers
+- Tor exit nodes
+- VPN/Proxy services
+- Bulletproof hosting
+- Geolocation anomalies
+
+**Domains:**
+- Newly registered (< 7 days)
+- Algorithmically generated
+- Typosquatting variants
+- Free dynamic DNS services
+- Fast-flux networks
+
+**Ports:**
+- Non-standard ports for common services
+- High-numbered ports (> 49152)
+- Common backdoor ports (4444, 5555, 31337)
+- Remote access ports (3389, 22, 23) from unusual sources
+
+**Protocols:**
+- Uncommon protocols in your environment
+- Tunneling protocols (GRE, IPIP)
+- Encrypted traffic to suspicious destinations
+- Protocol mismatches (HTTP on port 443)
+
+------------------------------------------------------------------------------
+
+## Network Traffic Classification
+
+### Normal Business Traffic
+- Web browsing (80, 443)
+- Email (25, 587, 993, 995)
+- DNS (53)
+- File sharing (445, 139)
+- VoIP (5060, 5061)
+- Known business applications
+
+### Suspicious Traffic
+- Outbound connections on unusual ports
+- Traffic to newly seen destinations
+- Large uploads to cloud services
+- Off-hours connections to production systems
+- Encrypted traffic without TLS handshake
+
+### Malicious Traffic
+- Connections to known bad IPs/domains
+- C2 beaconing patterns
+- DNS tunneling
+- Data exfiltration to unauthorized locations
+- Exploit attempts (port scans, vulnerability probes)
+
+------------------------------------------------------------------------
+
+##  Network Incident Escalation
+
+### When to Escalate to Network Team
+- Need to block IP/port at network level
+- Firewall rule changes required
+- Network device compromise suspected
+- DDoS mitigation needed
+- Network segmentation required
+- Router/switch investigation needed
+
+### When to Escalate to Security Manager
+- Confirmed data exfiltration
+- Widespread network compromise
+- Critical system targeting
+- Advanced persistent threat indicators
+- Business-impacting network incident
+- Potential breach notification required
+
+---
+
+## Network Investigation Checklist
+
+### Initial Triage
+- [ ] Identify source and destination IPs
+- [ ] Check port and protocol
+- [ ] Review traffic volume and duration
+- [ ] Verify time of activity
+- [ ] Check user/system context
+
+### Reputation Checks
+- [ ] IP reputation (VirusTotal, AbuseIPDB, Talos, Hybrid Analysis)
+- [ ] Domain reputation (Cisco Talos, URLhaus)
+- [ ] Check threat intelligence feeds
+- [ ] Review past incidents with same IOC
+- [ ] Verify geolocation appropriateness
+
+### Context Analysis
+- [ ] Business justification for connection
+- [ ] User's normal network behavior
+- [ ] System's intended purpose
+- [ ] Related alerts or incidents
+- [ ] Correlation with endpoint activity
+
+### Containment Options
+- [ ] Block at firewall (immediate)
+- [ ] Block at DNS (for domain-based)
+- [ ] Isolate affected system (network quarantine)
+- [ ] Rate limit (for volumetric attacks)
+- [ ] Redirect traffic (for analysis)
+
+### Documentation
+- [ ] Timeline of network activity
+- [ ] All IOCs identified
+- [ ] Systems and users involved
+- [ ] Actions taken and by whom
+- [ ] Evidence preserved (PCAPs, logs)
+
+------------------------------------------------------------
+
+## Quick Response Actions
+
+### Immediate Containment (< 5 minutes)
+... bash
+# Block IP at firewall (example - adjust for your environment)
+iptables -A INPUT -s [MALICIOUS_IP] -j DROP
+
+# Block outbound connection
+iptables -A OUTPUT -d [MALICIOUS_IP] -j DROP
+
+# Block domain at DNS (example BIND)
+# Add to DNS blackhole zone
+...
+
+### Evidence Collection (< 15 minutes)
+... bash
+# Capture live traffic
+tcpdump -i any -nn host [IP] -w evidence.pcap
+
+# Collect firewall logs
+# (Varies by firewall - check documentation)
+
+# Export SIEM data
+# Use SIEM export function for relevant timeframe
+...
+
+### System Isolation (< 10 minutes)
+...bash
+# Disable network interface (Windows)
+netsh interface set interface "Ethernet" admin=disable
+
+# Disable network interface (Linux)
+ip link set eth0 down
+
+# Or use network access control (NAC) to quarantine
+...
+
+----------------------------------------------------------------
+
+## 💡 Network Security Best Practices
+
+### Investigation Tips
+- Start with the 5 W's: Who, What, When, Where, Why
+- Correlate network activity with endpoint logs
+- Check both source AND destination context
+- Look for patterns across multiple events
+- Document your investigative path
+
+### Common Pitfalls to Avoid
+- Blocking IPs without checking business impact
+- Ignoring "low and slow" attacks
+- Not preserving network evidence (PCAPs)
+- Forgetting to check for lateral movement
+- Missing encrypted C2 channels
+
+### Pro Tips
+- Baseline your normal network traffic
+- Use threat intel feeds for proactive blocking
+- Set up alerts for rare destinations
+- Monitor certificate anomalies (SSL/TLS)
+- Track network flow metadata, not just alerts
+
+---
+
+## Quick Reference
+
+### Common Ports to Monitor
+| Port | Service | Risk |
+|------|---------|------|
+| 22 | SSH | High - Remote access |
+| 23 | Telnet | High - Unencrypted |
+| 80 | HTTP | Medium - Check destinations |
+| 443 | HTTPS | Medium - Encrypted C2 possible |
+| 445 | SMB | High - Lateral movement |
+| 3389 | RDP | High - Remote access |
+| 53 | DNS | Medium - Tunneling possible |
+| 25 | SMTP | Medium - Spam/phishing |
+
+### IP Reputation Tools
+- VirusTotal: https://www.virustotal.com
+- AbuseIPDB: https://www.abuseipdb.com
+- Cisco Talos: https://talosintelligence.com
+- AlienVault OTX: https://otx.alienvault.com
+- URLhaus: https://urlhaus.abuse.ch
+- Spamhaus: https://www.spamhaus.org
+
+-------------------------------------------------------------------
+
+**Remember:** Network traffic tells a story. Look for the narrative, not just individual events.
+
+**Stay Current:** Review firewall rules and network baselines monthly.
