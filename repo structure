@@ -1,0 +1,41 @@
+soc-incident-response-playbooks/
+├── README.md
+├── LICENSE
+├── CONTRIBUTING.md
+├── playbooks/
+│   ├── malware/
+│   │   ├── ransomware-response.md
+│   │   ├── trojan-detection.md
+│   │   └── malware-analysis.md
+│   ├── phishing/
+│   │   ├── email-phishing.md
+│   │   ├── spear-phishing.md
+│   │   └── credential-harvesting.md
+│   ├── network/
+│   │   ├── ddos-attack.md
+│   │   ├── port-scanning.md
+│   │   └── unauthorized-access.md
+│   ├── data-breach/
+│   │   ├── data-exfiltration.md
+│   │   ├── insider-threat.md
+│   │   └── data-leak-response.md
+│   ├── account-compromise/
+│   │   ├── credential-stuffing.md
+│   │   ├── brute-force-attack.md
+│   │   └── account-takeover.md
+│   └── cloud/
+│       ├── aws-compromise.md
+│       ├── azure-incident.md
+│       └── gcp-security-event.md
+├── templates/
+│   ├── incident-report-template.md
+│   ├── playbook-template.md
+│   └── post-incident-review.md
+├── tools/
+│   ├── investigation-tools.md
+│   ├── automation-scripts/
+│   └── integrations.md
+└── docs/
+    ├── getting-started.md
+    ├── severity-matrix.md
+    └── escalation-procedures.md
