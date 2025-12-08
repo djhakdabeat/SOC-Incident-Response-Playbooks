@@ -1,0 +1,624 @@
+# Account Compromise Response Runbook
+
+## What is Account Compromise?
+When someone gains unauthorized access to a user account - could be an attacker, insider threat, or stolen credentials.
+
+------------------------------------------------------------------------------------------------------------------------
+
+## Severity Levels
+
+### CRITICAL (Act in 15 minutes)
+- **Admin or privileged account** compromised
+- **Service account** being misused
+- **Multiple accounts** compromised
+- **Active unauthorized access** happening now
+- **Domain admin** credentials stolen
+
+**Call:** SOC Lead + Security Manager immediately
+
+### HIGH (Act in 1 hour)
+- **Regular user account** compromised
+- **Successful login** from suspicious location
+- **Account used for malicious activity**
+- **Password spray** attack successful
+
+**Call:** SOC Lead
+
+### MEDIUM (Act in 4 hours)
+- **Multiple failed login attempts**
+- **Suspicious login pattern** but no success
+- **Credential stuffing** attempts
+
+**Call:** Document and monitor
+
+--------------------------------------------------------------------------------------------
+
+## Signs of Account Compromise
+
+**Look for these red flags:**
+- Login from impossible location (user in USA, login from China)
+- Login at weird times (3 AM when user never works nights)
+- Multiple failed attempts, then success
+- Two logins from different countries at same time
+- Unusual activity after login (accessing files they don't normally use)
+- Password recently changed without user request
+- MFA disabled or changed
+- New devices registered
+- Unusual email activity (mass emails, forwarding rules)
+- VPN access from new location
+
+---------------------------------------------------------------------------------------------
+
+## Response Steps
+
+### STEP 1: Confirm It's Real (First 5 minutes)
+
+**Check these things:**
+...
+- Username of compromised account
+- When was the suspicious login?
+- Where did they login from? (IP address, country)
+- What device/browser was used?
+- Was the login successful?
+- Is this normal for this user?
+...
+
+**Quick checks:**
+- Look at user's recent login history
+- Check if they're on vacation/out of office
+- See if login location makes sense
+- Review failed attempts before success
+- Check if MFA was used
+
+**Contact the user:**
+- Call or message them: "Did you just login from [location]?"
+- If they say NO → Confirmed compromise
+- If they say YES → Verify it's really them (ask security question)
+- If you can't reach them → Assume compromise
+
+-------------------------------------------------------------------------------------------
+
+### STEP 2: Lock It Down (Next 5 minutes)
+
+**Do these things IMMEDIATELY:**
+
+**1. Disable the account**
+***powershell (verify user: " developer or regular staff user"
+# Windows Active Directory
+Disable-ADAccount -Identity USERNAME
+
+# Azure AD
+Set-AzureADUser -ObjectId USER@DOMAIN.COM -AccountEnabled $false
+...
+
+**2. Kill active sessions**
+...powershell
+# Windows - Kill user sessions
+quser
+logoff SESSION_ID
+
+# Azure AD - Revoke tokens
+Revoke-AzureADUserAllRefreshToken -ObjectId USER_ID
+...
+
+**3. Reset the password**
+- Generate strong temporary password
+- Force password change on next login
+- Document the new password securely
+
+**4. Check for persistence**
+...
+- Email forwarding rules added?
+- Inbox rules created?
+- OAuth apps authorized?
+- New devices registered?
+- Recovery email changed?
+- MFA disabled or modified?
+...
+
+**5. Block the attacker's IP**
+...bash
+# Block at firewall
+iptables -A INPUT -s ATTACKER_IP -j DROP
+...
+
+---------------------------------------------------------------
+
+### STEP 3: Investigate What Happened (Next 30-60 minutes)
+
+**Timeline of events:**
+
+**A. Review login activity**
+...
+- When did compromise start?
+- How many login attempts?
+- Which IPs were used?
+- What locations (countries/cities)?
+- Success rate of attempts?
+- Pattern of activity (automated vs manual)?
+...
+
+**SIEM Query:**
+...
+index=auth user=USERNAME earliest=-7d 
+| table _time, src_ip, action, result, location
+| sort _time
+...
+
+**B. Check what they did**
+...
+- Files accessed or downloaded?
+- Emails sent?
+- Data exported?
+- Settings changed?
+- Other accounts accessed?
+- Malware installed?
+- Lateral movement attempted?
+...
+
+**SIEM Query:**
+...
+index=* user=USERNAME earliest=[COMPROMISE_TIME]
+| stats count by action, object, dest
+...
+
+**C. Check email activity**
+...
+- Mass emails sent?
+- Phishing emails sent?
+- Forwarding rules created?
+- Emails deleted?
+- Sensitive emails accessed?
+...
+
+**D. Determine how they got in**
+- **Phishing:** User clicked bad link and entered password
+- **Credential Stuffing:** Password reused from another breach
+- **Brute Force:** Attacker guessed password
+- **Malware:** Keylogger or info-stealer on user's computer
+- **Password Spray:** Attacker tried common passwords
+- **Insider:** Someone with legitimate access misused it
+
+-----------------------------------------------------------------------------
+
+### STEP 4: Expand Your Investigation (Next 30 minutes)
+
+**Check if it's bigger than one account:**
+
+**Look for similar patterns:**
+...
+- Other users with logins from same IP?
+- Same attack pattern on other accounts?
+- Related accounts compromised?
+- Same timeframe for suspicious activity?
+...
+
+**SIEM Query:**
+...
+index=auth src_ip=ATTACKER_IP 
+| stats count by user, result
+...
+
+**Check related accounts:**
+...
+- Same department users
+- Users with similar privileges
+- Shared mailbox access
+- Service accounts
+- Admin accounts
+...
+
+**Check affected systems:**
+...
+- Which systems did they access?
+- Any servers or databases?
+- Cloud applications?
+- File shares?
+- VPN connections?
+...
+
+-------------------------------------------------------------------
+
+### STEP 5: Notify People (Next 15 minutes)
+
+**Who to tell:**
+
+**Immediate (Right Now):**
+....
+- SOC Lead (always)
+- Security Manager (if high/critical)
+- The affected user
+- User's manager
+ -IT Help Desk or (Sevice/Client Support )
+.......
+
+**Within 1 hour:**
+.....
+- CISO or (Director) (if admin account)
+- HR (if insider threat suspected)
+- Legal (if data accessed)
+- Compliance (if regulated data)
+...
+
+**Simple notification template:**
+...
+SUBJECT: Account Compromise - [USERNAME]
+
+User account compromised: [USERNAME]
+Time detected: [DATE/TIME]
+Severity: [Critical/High/Medium]
+
+What happened:
+- Suspicious login from [LOCATION/IP]
+- User confirmed they did not login
+- Account has been disabled
+
+Actions taken:
+- Account disabled
+- Sessions terminated
+- Password reset
+- Attacker IP blocked
+
+What we're doing:
+- Investigating what was accessed
+- Checking for other compromised accounts
+- [Other actions]
+
+Contact: [YOUR NAME] [PHONE]
+...
+
+------------------------------------------------------------------
+
+### STEP 6: Cleanup & Recovery (Next 1-2 hours)
+
+**Remove attacker's access:**
+...
+- Delete unauthorized email rules
+- Remove unauthorized OAuth apps
+- Delete suspicious inbox rules
+- Remove unauthorized recovery emails
+- Delete unknown registered devices
+- Revoke API tokens
+- Re-enable MFA
+....
+
+**Scan for malware:**
+....
+- Scan user's computer
+- Scan any accessed servers
+- Check for suspicious processes
+- Look for persistence mechanisms
+...
+
+**Restore account safely:**
+...
+- User creates new strong password
+- User enables MFA (mandatory)
+- User verifies recovery options
+- Re-enable account
+- Monitor closely for 48 hours
+...
+
+**User notification:**
+
+Hi [USER],
+
+Your account was compromised. Here's what you need to do:
+
+1. Change your password NOW (use link below)
+2. Enable multi-factor authentication
+3. Review your recent account activity
+4. Check for unauthorized emails sent
+5. Scan your computer for malware
+
+If you used this password anywhere else, change it there too.
+
+Questions? Call: [HELPDESK NUMBER]
+
+
+---------------------------------------------------------------------------
+
+### STEP 7: Prevent It From Happening Again (Next day)
+
+**Security improvements:**
+
+- Enforce MFA for all users
+- Implement conditional access policies
+- Block legacy authentication
+- Enable login alerts
+- Implement password policy
+- Deploy EDR on endpoints
+- User security training
+
+
+**Create detection rules:**
+
+- Alert on impossible travel
+- Alert on multiple failed logins
+- Alert on new device registration
+- Alert on MFA changes
+- Alert on suspicious locations
+...
+
+**Document lessons learned:**
+...
+- How did this happen?
+- What could we have done better?
+- What detection was missing?
+- What training is needed?
+
+
+----------------------------------------------------------------------------------
+
+## Common Attack Types
+
+### 1. Password Spray
+**What:** Attacker tries common passwords against many accounts
+**Signs:** Multiple failed logins across different users, same password attempted
+**Response:** Enable account lockout, force password changes, implement MFA
+
+### 2. Credential Stuffing
+**What:** Attacker uses stolen credentials from other breaches
+**Signs:** Successful login from unusual location, user password found in breach database
+**Response:** Force password change, enable MFA, check Have I Been Pwned
+
+### 3. Brute Force
+**What:** Attacker tries many passwords against one account
+**Signs:** Many failed login attempts on single account
+**Response:** Lock account after X failures, block attacking IP, notify user
+
+### 4. Phishing
+**What:** User tricked into giving password to fake login page
+**Signs:** Login shortly after phishing email, unusual activity after login
+**Response:** Block phishing domain, notify all users, security awareness training
+
+### 5. Token Theft
+**What:** Attacker steals session token or cookie
+**Signs:** Login without password attempt, unusual browser/device
+**Response:** Kill all sessions, force re-authentication, enable MFA
+
+------------------------------------------------------------------------------------
+
+## Investigation Commands
+
+### Check Recent Logins (Windows)
+... powershell
+# Event Viewer - Successful logins
+Get-EventLog -LogName Security -InstanceId 4624 | Where-Object {$_.Message -like "*USERNAME*"}
+
+# Failed logins
+Get-EventLog -LogName Security -InstanceId 4625 | Where-Object {$_.Message -like "*USERNAME*"}
+
+# Recent logoffs
+Get-EventLog -LogName Security -InstanceId 4634 | Where-Object {$_.Message -like "*USERNAME*"}
+...
+
+### Check Active Sessions
+... powershell
+# Windows
+quser
+query user
+
+# Show all active sessions
+qwinsta
+
+# Kill a session
+logoff SESSION_ID
+...
+
+### Check Password Changes
+... powershell
+# Windows Event Log
+Get-EventLog -LogName Security -InstanceId 4724 | Where-Object {$_.Message -like "*USERNAME*"}
+...
+
+### Check Email Rules
+... powershell
+# Office 365
+Get-InboxRule -Mailbox USER@DOMAIN.COM
+
+# Look for forwarding
+Get-Mailbox USER@DOMAIN.COM | Select ForwardingSmtpAddress
+...
+
+### Check OAuth Apps
+... powershell
+# Azure AD
+Get-AzureADUserOAuth2PermissionGrant -ObjectId USER_ID
+...
+
+------------------------------------------------------------------
+
+##  Simple SIEM Queries
+
+### Failed Login Attempts
+
+index=auth action=failure user=USERNAME
+| stats count by src_ip, _time
+| where count > 5
+...
+
+### Successful Login After Failures
+...
+index=auth user=USERNAME
+| transaction user maxspan=30m
+| where action="failure" AND action="success"
+...
+
+### Logins from New Location
+...
+index=auth user=USERNAME action=success
+| rare src_ip
+...
+
+### Impossible Travel
+...
+index=auth action=success user=USERNAME
+| sort _time
+| autoregress src_ip as previous_ip
+| where src_ip != previous_ip AND timediff < 3600
+...
+
+### Account Activity After Compromise
+...
+index=* user=USERNAME earliest=[COMPROMISE_TIME]
+| stats count by action, src_ip, dest
+
+
+-------------------------------------------------------
+
+## Quick Investigation Checklist
+
+### Initial Response (15 minutes)
+
+- Confirm compromise with user
+- Disable account immediately
+- Kill active sessions
+- Reset password
+- Block attacker IP
+- Create incident ticket
+- Notify SOC Lead
+
+
+### Investigation (1 hour)
+
+- Review login history
+- Identify compromise timeframe
+- Check what attacker accessed
+- Check email activity
+- Look for data exfiltration
+- Check for persistence mechanisms
+- Determine attack method
+- Look for other compromised accounts
+
+
+### Containment (2 hours)
+
+- Remove unauthorized access
+- Delete malicious email rules
+- Revoke OAuth apps
+- Scan systems for malware
+- Block additional IPs if needed
+- Monitor for re-compromise attempts
+
+
+### Recovery (4 hours)
+
+- Restore account with new password
+- Enforce MFA
+- Notify user of changes
+- Provide security guidance
+- Continue monitoring
+
+
+### Follow-up (Next day)
+
+- Complete investigation report
+- Implement security improvements
+- Create new detection rules
+- User security training
+- Update runbook if needed
+
+
+-------------------------------------------------------
+
+##  Escalation Guide
+
+### When to Escalate to SOC Lead
+- Any account compromise (always notify)
+- Admin or privileged account
+- Multiple accounts affected
+- Unable to contain the incident
+- Data was accessed or stolen
+
+### When to Escalate to Security Manager
+- Critical/High severity incidents
+- Executive account compromised
+- Domain admin account compromised
+- Widespread campaign detected
+- Potential insider threat
+
+### When to Escalate to CISO
+- Multiple admin accounts compromised
+- Domain compromise
+- Significant data breach
+- Requires business decision
+- Legal/regulatory implications
+
+-------------------------------------------------------
+
+## Pro Tips
+
+**Investigation Tips:**
+- Always verify with the user first
+- Check multiple data sources (don't rely on one log)
+- Look for patterns across multiple users
+- Document the timeline clearly
+- Preserve evidence before making changes
+
+**Common Mistakes to Avoid:**
+- Disabling account without checking with user first
+- Not killing active sessions (attacker stays logged in)
+- Forgetting to check email rules and forwarding
+- Not checking for lateral movement
+- Poor documentation
+
+**Remember:**
+- Speed matters - every minute counts
+- When in doubt, disable first, ask questions later
+- Always assume the compromise is worse than it looks
+- Document everything with timestamps
+- Communication is key - keep people informed
+
+---
+
+## Key Takeaways
+
+**The Golden Rules:**
+1. **Verify** - Confirm with the user it's unauthorized
+2. **Disable** - Lock the account immediately
+3. **Investigate** - Find out what happened and what was accessed
+4. **Contain** - Remove attacker access completely
+5. **Recover** - Restore account safely with MFA
+6. **Prevent** - Implement controls to stop it happening again
+
+**If You Remember Nothing Else:**
+- Disable account first, investigate second
+- Always kill active sessions
+- Check email rules and forwarding
+- Force MFA enrollment
+- Document everything
+
+----------------------------------------------------------------------
+
+## Quick Reference Card
+
+**Account Compromise Response:**
+
+**First 5 minutes:**
+1. Verify with user
+2. Disable account
+3. Kill sessions
+4. Create ticket
+
+**Next 30 minutes:**
+5. Reset password
+6. Review what was accessed
+7. Block attacker IP
+8. Check for persistence
+
+**Next hour:**
+9. Remove unauthorized access
+10. Scan for malware
+11. Notify stakeholders
+12. Document findings
+
+**Recovery:**
+13. New password + MFA
+14. Monitor for 48 hours
+15. User security training
+
+**Emergency Contact:** SOC Lead [PHONE]
+
+-------------------------------------------------------------------------
+
