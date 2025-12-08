@@ -1,0 +1,61 @@
+# Ransomware Response Playbook
+
+## Severity: CRITICAL
+
+## Objective
+Rapidly contain ransomware infection, prevent spread, and restore operations with minimal data loss.
+
+## Detection Indicators
+- File encryption activity
+- Ransom notes (text files, wallpaper changes)
+- Unusual file extensions (.encrypted, .locked, etc.)
+- Mass file modifications
+- Network share access anomalies
+- Backup deletion attempts
+
+## Immediate Actions (0-15 minutes)
+1. Isolate affected systems from network
+2. Identify patient zero and infection vector
+3. Notify incident response team and management
+4. Document initial observations with timestamps
+5. Preserve evidence (memory dumps, logs)
+
+## Investigation Phase (15-60 minutes)
+1. Identify ransomware variant
+2. Map affected systems and data
+3. Check backup integrity
+4. Analyze network logs for lateral movement
+5. Identify all compromised credentials
+
+## Containment
+1. Disconnect affected systems
+2. Block C2 communication at firewall
+3. Disable compromised accounts
+4. Segment network to prevent spread
+5. Monitor for additional infections
+
+## Eradication
+1. Remove ransomware artifacts
+2. Patch vulnerabilities
+3. Reset compromised credentials
+4. Update security controls
+5. Verify clean state
+
+## Recovery
+1. Restore from clean backups
+2. Rebuild affected systems if necessary
+3. Gradually reconnect to network
+4. Monitor for re-infection
+5. Validate data integrity
+
+## Post-Incident
+1. Conduct root cause analysis
+2. Update security controls
+3. Review and update playbook
+4. Provide user awareness training
+5. File insurance claim if applicable
+
+** Other considerations are are also:
+ 1. Have a Security Retainer with an advising security consultant
+ 2. POC solutions that can give you true visbility on the actual details of the ransomware attack
+ 3. Optimize your exisitng stack for backups, golden images, immutable backups, recoveries, and test, test, test you recoveries!!!!
