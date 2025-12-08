@@ -1,0 +1,36 @@
+Playbook Categories
+** Malware Incidents
+
+Ransomware Response: Procedures for ransomware detection, containment, and recovery
+Trojan Detection: Steps for identifying and removing trojan malware
+Malware Analysis: Guidelines for analyzing suspicious files and behaviors
+
+** Phishing Attacks
+
+Email Phishing: Response procedures for general phishing campaigns
+Spear Phishing: Targeted phishing attack handling
+Credential Harvesting: Detection and mitigation of credential theft attempts
+
+** Network Incidents
+
+DDoS Attacks: Distributed denial of service mitigation strategies
+Port Scanning: Detection and response to reconnaissance activities
+Unauthorized Access: Handling unauthorized network access attempts
+
+** Data Breach
+
+Data Exfiltration: Procedures for detecting and stopping data theft
+Insider Threats: Response to malicious insider activities
+Data Leak Response: Handling confirmed data exposure incidents
+
+** Account Compromise
+
+Credential Stuffing: Response to automated credential attacks
+Brute Force Attacks: Handling password guessing attempts
+Account Takeover: Recovery procedures for compromised accounts
+
+** Cloud Security
+
+AWS Compromise: AWS-specific incident response procedures
+Azure Incidents: Microsoft Azure security event handling
+GCP Security Events: Google Cloud Platform incident response
