@@ -1,0 +1,414 @@
+# Phishing Response Runbook - SOC Analyst Quick Reference
+
+**Version**: 1.0 | **Last Updated**: Dec 2025
+
+---
+
+Quick Start
+******************************************************
+**Got a phishing alert? Follow these steps in order.**
+
+---
+
+** Step 1: Verify It's Phishing (5 minutes)
+
+** Check These Red Flags:
+-  Sender email doesn't match display name
+-  Generic greeting ("Dear user", "Dear customer")
+-  Urgent language ("Act now!", "Account suspended!")
+-  Asking for passwords/payment/personal info
+-  Suspicious links or attachments
+-  Poor grammar or spelling
+-  Failed email authentication (SPF/DKIM/DMARC)
+
+** Quick Actions:
+```
+1. Get the full email with headers
+2. Note: Subject line, sender, time received
+3. Create ticket: PHI-[DATE]-[NUMBER]
+```
+
+** Decision Point:**
+- ** Real phishing?** → Continue to Step 2
+- ** False alarm?** → Document and close ticket
+- ** Not sure?** → Escalate to senior analyst
+
+---
+
+** Step 2: How Bad Is It? (2 minutes)
+
+| Severity | When to Use | Response Time |
+|----------|-------------|---------------|
+| **  P1 - CRITICAL ** | Executive targeted, credentials entered, malware ran | 15 min - ESCALATE NOW |
+| **  P2 - HIGH ** | Multiple users, credential harvesting page, malicious file | 1 hour |
+| **  P3 - MEDIUM ** | Single user, suspicious but no interaction | 4 hours |
+| **  P4 - LOW ** | Caught by spam filter, no clicks | 24 hours |
+
+** If P1: Stop and escalate to SOC Lead immediately!**
+
+-------------------------------------------------------
+
+** Step 3: Find All the Emails (10 minutes)
+
+** Search Your Email Gateway:
+
+Search for:
+- Sender email: phisher@domain.com
+- Subject line: "Urgent: Verify Account"
+- Time range: Last 24 hours
+
+Export results: List of all recipients
+
+
+** How Many Users Got It?
+- ** 1-5 users**: Continue
+- ** 5-50 users**: Notify SOC Lead
+- ** 50+ users**: Escalate to P2, notify management
+
+-------------------------------------------------------
+
+** Step 4: Did Anyone Click? (10 minutes)
+
+** Check These Logs:
+
+** Email Gateway:**
+
+Did users open the email?
+Did users click links?
+Did users download attachments?
+
+
+** Web Proxy/Firewall:**
+
+Search for: suspicious-domain.com
+Check: Which users visited?
+When: Time of visit
+
+
+** EDR (if attachment):**
+** Any DNS web url filtering tools? **
+
+Search for: attachment_name.exe
+Check: Did file execute?
+Which hosts?
+
+
+**  Make a List:
+- Users who **received** email: [count]
+- Users who **clicked** link: [names]
+- Users who **opened** attachment: [names]
+
+---------------------------------------------
+
+** Step 5: Stop the Bleeding (15 minutes)
+
+** A. Delete the Emails
+** Office 365:**
+** powershell
+# Search and delete
+New-ComplianceSearch -Name "PhishingRemoval" 
+  -ExchangeLocation All 
+  -ContentMatchQuery 'Subject:"Urgent: Verify Account"'
+
+* Start the search
+Start-ComplianceSearch -Identity "PhishingRemoval"
+
+* Delete after search completes
+New-ComplianceSearchAction -SearchName "PhishingRemoval" 
+  -Purge -PurgeType SoftDelete
+
+
+** Or use your email gateway console to quarantine/delete**
+
+** B. Block the Bad Stuff
+
+** At Email Gateway:**
+- Add sender to blocklist: `phisher@domain.com`
+- Add domain to blocklist: `malicious-domain.com`
+
+** At Firewall/Proxy:**
+- Block URL: `http://malicious-domain.com/login`
+- Block IP: `192.0.2.100`
+
+** At DNS:**
+- Sinkhole domain: `malicious-domain.com`
+
+--------------------------------------------------------
+
+** Step 6: Secure Compromised Accounts (20 minutes)
+
+** For Users Who Clicked Links:
+
+** Reset Password :**
+```powershell
+# Force password reset in AD
+Set-ADUser -Identity username -ChangePasswordAtLogon $true
+
+# Or in Office 365
+Set-MsolUserPassword -UserPrincipalName user@company.com 
+  -ForceChangePassword $true
+
+
+**Kill Active Sessions:**
+** powershell ( Is powershell logging on ?)
+# Revoke all sessions
+Revoke-AzureADUserAllRefreshToken 
+  -ObjectId "user@company.com"
+
+
+**Check for Evil Email Rules:**
+** powershell
+* Look for forwarding or auto-delete rules
+Get-InboxRule -Mailbox user@company.com | 
+  Where-Object {$_.ForwardTo -ne $null -or 
+                $_.DeleteMessage -eq $true}
+
+* Delete suspicious rule
+Remove-InboxRule -Identity "RuleName" -Mailbox user@company.com
+
+
+** For Users Who Opened Attachments:
+
+**Isolate the Computer:**
+```
+1. Use EDR to network-isolate the host (e. CrowStrike has RTR capability on the agent)
+2. OR physically disconnect network cable
+3. Take screenshot of any malware activity
+4. Run full antivirus scan
+
+
+**Check for Malware:**
+```
+- Run EDR scan
+- Check running processes for suspicious items
+- Look for new scheduled tasks
+- Check startup programs
+```
+
+---------------------------------------------------------
+
+** Step 7: Document Everything (10 minutes)
+
+** Update Your Ticket:
+
+
+Incident: PHI-2025-XXX
+Time Detected: [HH:MM]
+Severity: [P1/P2/P3/P4]
+
+Summary:
+- Phishing email with subject "[Subject]"
+- Sent from: [Email/Domain]
+- Recipients: [Count]
+- Users clicked: [Count/Names]
+- Attachments: [Yes/No]
+
+IOCs:
+- Sender: phisher@malicious.com
+- Domain: malicious-domain.com
+- IP: 192.0.2.100
+- URL: http://malicious-domain.com/login
+- File hash: abc123def456...
+
+Actions Taken:
+* Emails quarantined/deleted
+* Sender/domain blocked
+* [X] user passwords reset
+* [X] user sessions revoked
+* Email rules checked and removed
+* [X] endpoints isolated/scanned
+
+Status: Contained | Under Investigation | Resolved
+Next Steps: [What's left to do]
+
+
+---------------------------------------------------
+
+** Step 8: Tell People (5 minutes)
+
+** Notify the Affected Users:
+
+Subject: Security Alert - Phishing Email
+
+Hi [User],
+
+We detected and removed a phishing email from your inbox 
+with subject "[Subject]".
+
+Your Actions Required:
+1. Change your password immediately
+2. Enable MFA if not already active
+3. Report any suspicious account activity
+
+If you clicked the link or opened the attachment, 
+please call the SOC immediately at [XXX-XXXX].
+
+Thanks,
+SOC Team
+
+
+** Notify Your Team:
+
+* security-alerts channel:
+
+** PHISHING ALERT **
+Subject: "[Email Subject]"
+Sender: phisher@domain.com
+Recipients: [count]
+Severity: [Level]
+Status: Contained
+Handler: [Your Name]
+Ticket: PHI-2025-XXX
+......
+
+---------------------------------------
+
+** Step 9: Watch for More (Ongoing)
+
+** Set Up Monitoring:
+
+**Create SIEM Alert:**
+.....
+Alert: Phishing Follow-up Activity
+Trigger when:
+- Login from IP: 192.X.X.X
+- Access to: malicious-domain.com
+- Similar email pattern detected
+
+Action: Create ticket, notify SOC
+.....
+
+**Monitor These Users for 7 Days:**
+- Unusual login locations
+- Multiple failed login attempts
+- Large data downloads
+- New email rules created
+- Changes to MFA settings
+
+-------------------------------------------
+
+** Step 10: Close It Out (15 minutes)
+
+** Before Closing:
+
+**Checklist:**
+-  All phishing emails removed
+-  Sender/domain/IP blocked
+-  Affected users notified
+-  Compromised accounts secured
+-  Monitoring alerts created
+-  IOCs documented
+-  Ticket fully documented
+-  Lessons learned noted
+
+**Final Update:**
+```
+Incident PHI-2025-XXX: CLOSED
+
+Resolution:
+- [X] phishing emails removed
+- [X] users affected
+- [X] accounts secured
+- [X] endpoints cleaned
+- Time to resolve: [X] hours
+
+Lessons Learned:
+- [What went well]
+- [What could improve]
+- [Recommendations]
+...........
+
+------------------------------------------
+
+** When to Escalate
+
+**Escalate to SOC Lead if:**
+-  More than 10 users affected
+-  Executive or C-suite targeted
+-  Credentials were definitely entered
+-  Malware executed on endpoints
+-  You're stuck or unsure what to do
+-  More than 2 hours into investigation
+
+**Escalate to CISO if:**
+-  Confirmed data breach
+-   Wire transfer fraud
+-   Media/public exposure
+-   Regulatory notification required
+
+-----------------------------------------
+
+** Quick Tools Reference
+
+** Email Analysis:
+- **MXToolbox**: Check headers, SPF/DKIM
+- **URLscan.io**: Analyze suspicious URLs
+- **VirusTotal**: Check file hashes, URLs, IPs
+- **Any.run**: Sandbox suspicious files
+
+**Investigation:
+```powershell
+* Find emails in O365
+Search-Mailbox -Identity "username" 
+  -SearchQuery 'From:"phisher@domain.com"'
+
+* Check inbox rules
+Get-InboxRule -Mailbox user@company.com
+
+* Check recent logins
+Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-1) 
+  -RecordType AzureActiveDirectoryAccountLogon
+```
+
+### Quick Commands:
+```bash
+# Check domain reputation
+whois malicious-domain.com
+
+# Test DNS
+nslookup -type=txt _dmarc.company.com
+
+# Check URL
+curl -I http://suspicious-url.com
+.......
+
+------------------------------------------------
+
+#Cheat Sheet
+
+#Time Expectations:
+- **Initial triage**: 5 min
+- **Investigation**: 15-30 min
+- **Containment**: 15-30 min
+- **User remediation**: 5 min per user
+- **Documentation**: 15 min
+- **Total**: 1-2 hours for typical incident
+
+### Common Mistakes to Avoid:
+- Not checking if users clicked/opened
+- Forgetting to check email rules
+- Not killing active sessions after password reset
+- Poor documentation
+- Not setting up monitoring
+- Forgetting to block at multiple layers
+
+#Pro Tips:
+- Screenshot everything as you go
+- Copy/paste commands into ticket notes
+- Set a timer - if stuck after 30 min, escalate
+- Always check email rules for affected users
+- Save IOCs for future reference
+- Update your blocklists immediately
+- Also invest in automation tools like SOAR, no-code, low code, to make the workflow easier for the analyst.
+
+--------------------------------------------
+
+## 📞 Quick Contacts
+
+- **SOC Lead**: [Phone/Slack]
+- **Email Admin**: [Phone/Email]
+- **IT Helpdesk**: [Phone/Ticket System]
+- **CISO**: [Phone] - P1 only
+
+
+**Remember: Speed matters, but accuracy matters more. When in doubt, escalate!**
