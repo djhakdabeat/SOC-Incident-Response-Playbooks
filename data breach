@@ -1,0 +1,392 @@
+# Data Breach Response Playbook
+
+## What is a Data Breach?
+Unauthorized access to or theft of sensitive data including customer info, employee records, financial data, passwords, or company secrets.
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+## How Serious Is It? ( Check you company on what kind of data is handled , PII, PHI. etc )
+
+###  CRITICAL (Act in 15 minutes)
+- Customer credit cards or SSN stolen
+- Medical records exposed
+- Passwords or admin credentials leaked
+- Trade secrets stolen
+- Data actively being stolen RIGHT NOW
+
+**Who to call:** SOC Lead + Security Manager + CISO
+
+###  HIGH (Act in 1 hour)
+- Employee personal data accessed
+- Confidential business documents stolen
+- Large amounts of internal data downloaded
+
+**Who to call:** SOC Lead + Security Manager
+
+###  MEDIUM (Act in 4 hours)
+- Suspicious file access
+- Small data exposure
+- Policy violation with potential data risk ( Check your business policies or security documentation)
+
+**Who to call:** SOC Lead
+
+-----------------------------------------------------------------------
+
+## 📋 What to Do - Step by Step
+
+### STEP 1: Confirm It's Real (First 10 minutes)
+
+**Check these things:**
+- Who accessed the data? (username, system)
+- What data was accessed? (files, databases, records)
+- When did it happen? (date and time)
+- Where did the data go? (email, USB, cloud, download)
+- How much data? (number of files, GB, records)
+
+**Quick questions to ask:**
+- Is this normal for this user?
+- Did they have permission to access this data?
+- Is the data sensitive?
+- Can we see where it went?
+
+**Create a ticket and write down:**
+...
+INCIDENT #: [Number]
+TIME DETECTED: [Date/Time]
+USER INVOLVED: [Username]
+DATA TYPE: [What kind of data]
+ESTIMATED SIZE: [How much]
+MY NAME: [Your name]
+...
+
+------------------------------------------------------------------
+
+### STEP 2: Stop the Bleeding (Next 15 minutes)
+
+**Do these things FAST:**
+
+1. **Stop active data theft**
+   - Disable the user account
+   - Block the destination (IP, website, email)
+   - Disconnect system from network if needed
+
+2. **Save evidence**
+   - Export logs NOW (they may disappear)
+   - Take screenshots
+   - Note everything you see
+
+3. **Prevent more damage**
+   - Change passwords for affected accounts
+   - Revoke access tokens/API keys
+   - Check if other accounts are compromised
+
+**Commands to disable user:**
+```powershell
+# Windows
+Disable-ADAccount -Identity USERNAME
+
+# Linux
+usermod -L USERNAME
+.....
+
+**Commands to block IP:**
+....bash
+# Block bad IP
+iptables -A OUTPUT -d MALICIOUS_IP -j DROP
+...
+
+-------------------------------------------------------
+
+### STEP 3: Figure Out What Happened (Next 1-2 hours)
+
+**What to investigate:**
+
+**Check User Activity:**
+- When did they last login? From where?
+- What files did they open/download?
+- Did they email files or upload to cloud?
+- Did they use USB drives?
+- Any unusual behavior in past week?
+
+**Check Data Movement:**
+- Large file downloads?
+- Emails with attachments sent?
+- Cloud uploads (Dropbox, Google Drive)?
+- Database exports?
+- Compressed files created (.zip)?
+
+**Check Systems:**
+- Which computers were used?
+- Any malware found?
+- Were logs deleted?
+- Any backdoors installed?
+
+**Simple SIEM searches:**
+...
+# Find large downloads by user
+user=USERNAME bytes > 10000000
+
+# Find file access by user
+user=USERNAME action=download OR action=access
+
+# Find cloud uploads
+url contains "dropbox" OR url contains "drive.google"
+...
+
+**Make a timeline:**
+...
+2:30 PM - User logged in from home
+2:35 PM - Accessed HR database
+2:40 PM - Downloaded 1000 employee records
+2:45 PM - Created zip file
+2:50 PM - Uploaded to personal Dropbox
+2:55 PM - Deleted zip file
+...
+
+----------------------------------------------------------------
+
+### STEP 4: Tell the Right People (Next 1 hour)
+
+**Who needs to know:**
+
+**Tell IMMEDIATELY:**
+- Your SOC Lead
+- Security Manager (for serious breaches)
+- The team that owns the data
+- IT team (to help block/disable things)
+
+**Tell within 2 hours:**
+- Legal team (they need to know about laws)
+- CISO (for big breaches)
+- HR (if it's an employee doing bad things)
+- PR team (if customers are affected)
+
+**Simple notification:**
+.....
+URGENT - Data Breach Detected
+
+What happened: [Brief description]
+Data affected: [Type and amount]
+When: [Date/time]
+Actions taken: [What you did]
+Next steps: [What's happening next]
+
+Contact me: [Your name and number]
+....
+
+**Important laws to know:**
+- **GDPR**: Must notify within 72 hours (if EU people affected)
+- **HIPAA**: Must notify within 60 days (if medical data)
+- **State Laws**: Usually 30-90 days (if state residents affected)
+
+-----------------------------------------------------------------
+
+### STEP 5: Fix the Problem (Next day)
+
+**Find out HOW they got in:**
+- Stolen password?
+- Phishing email?
+- Insider with access?
+- Hacked system?
+- Weak security?
+
+**Fix these things:**
+- Patch any vulnerabilities
+- Update firewall rules
+- Force password changes
+- Add multi-factor authentication
+- Remove unnecessary access
+- Update security tools
+
+**Make sure they're gone:**
+- No backdoors left behind
+- No malware remaining
+- All their access removed
+- Logs are being collected
+- Monitoring is working
+
+-----------------------------------------------------------------
+
+### STEP 6: Get Back to Normal (Next 2-3 days)
+
+**Recovery checklist:**
+- Systems are clean and safe
+- All backdoors removed
+- Users have new passwords
+- Security controls are working
+- Extra monitoring in place
+- Team is watching for anything suspicious
+
+**Help affected people:**
+- Notify them about the breach
+- Offer credit monitoring (if personal data stolen)
+- Provide guidance on protecting themselves
+- Answer their questions
+
+------------------------------------------------------
+
+### STEP 7: Learn From It (Next week)
+
+**Have a meeting to discuss:**
+- What went well?
+- What went wrong?
+- What should we change?
+- What new tools do we need?
+- How can we detect this faster next time?
+
+**Update documentation:**
+- Write final incident report
+- Update this playbook if needed
+- Create new detection rules
+- Train team on lessons learned
+
+--------------------------------------------------------
+
+## Common Signs of Data Breach
+
+**Look for these red flags:**
+- User downloading tons of files suddenly
+- Files being copied to USB drives
+- Uploads to personal cloud storage
+- Large email attachments being sent out
+- Database exports happening
+- Access to files they don't normally use
+- Activity at odd hours (2 AM)
+- Multiple failed login attempts then success
+- Files being compressed into .zip files
+- Printer printing hundreds of pages
+
+---------------------------------------------------------
+
+## 🛠️ Quick Investigation Tips
+
+**Fast ways to check:**
+
+1. **Check their recent logins:**
+   - When and where did they login?
+   - Any unusual locations?
+   - Failed attempts before success?
+
+2. **Check what they accessed:**
+   - File server logs
+   - Database logs
+   - Email logs
+   - Cloud service logs
+
+3. **Check where data went:**
+   - Email sent with attachments?
+   - Cloud uploads?
+   - USB activity?
+   - FTP transfers?
+
+4. **Check for cleanup:**
+   - Did they delete files?
+   - Did they clear browser history?
+   - Did they disable antivirus?
+
+---------------------------------------------------------
+
+##  Who to Call
+
+**Emergency contacts:**
+- **SOC Lead**: [Phone] - Call first
+- **Security Manager**: [Phone] - For serious incidents
+- **IT Help Desk**: [Phone] - To disable accounts
+- **Legal**: [Phone] - For law questions
+
+**After hours:**
+- **On-call SOC**: [Phone]
+- **Emergency line**: [Phone]
+
+----------------------------------------------------------
+
+## ✅ Simple Checklist
+
+### ☐ First 15 Minutes
+- Confirm the breach is real
+- Note what data is involved
+- Create incident ticket
+- Call SOC Lead
+- Disable compromised accounts
+- Block bad destinations
+- Save logs and evidence
+
+### First Hour
+- Figure out how much data
+- Determine how it happened
+- Stop any ongoing theft
+- Notify security manager
+- Start detailed investigation
+- Document everything
+
+### First 4 Hours
+- Complete investigation
+- Call legal team
+- Fix the security hole
+- Remove attacker access
+- Check if we need to notify authorities
+- Prepare summary for management
+
+### First 24 Hours
+- Make sure threat is gone
+- Start recovery
+- Notify affected people (if required by law)
+- Set up extra monitoring
+- Update management
+- Write up what happened
+
+### First Week
+- Finish recovery
+- Meet with team to discuss
+- Improve security
+- Update procedures
+- Train others on what happened
+- Complete final report
+
+--------------------------------------------------------
+
+## 💡 Important Reminders
+
+**DO:**
+-  Act fast but carefully
+-  Save evidence before you make changes
+-  Write down EVERYTHING with times
+-  Call for help if unsure
+-  Tell legal team early
+-  Keep management updated
+
+**DON'T:**
+-  Wait too long to act
+-  Delete or change evidence
+-  Alert the bad guy you found them (if insider)
+-  Forget to document actions
+-  Miss legal notification deadlines
+-  Handle it alone - get help
+
+**Remember:**
+- When in doubt, escalate to your lead
+- It's better to over-react than under-react
+- Document everything - if you don't write it down, it didn't happen
+- Speed matters but accuracy matters more
+- You're not expected to know everything - ask questions
+
+----------------------------------------------------------
+
+## Quick Reference Card
+
+**Data Breach = Unauthorized access or theft of sensitive data**
+
+**Response Steps:**
+1. Confirm it's real (10 min)
+2. Stop it immediately (15 min)
+3. Investigate what happened (1-2 hours)
+4. Notify the right people (1 hour)
+5. Fix the problem (1 day)
+6. Recover safely (2-3 days)
+7. Learn from it (1 week)
+
+**Always document: Who, What, When, Where, Why, How**
+
+**When stuck: Call your SOC Lead**
+
+--------------------------------------------------------
