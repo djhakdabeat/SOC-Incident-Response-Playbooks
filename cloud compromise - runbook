@@ -1,0 +1,731 @@
+# Cloud Security Incident Runbook
+
+## 🎯 What is a Cloud Security Incident?
+Unauthorized access, misuse, or compromise of your company's cloud resources (AWS, Azure, or GCP).
+
+--------------------------------------------------------------------------------------------------
+
+## Common Cloud Incidents
+
+### Types of Cloud Security Issues:
+- **Compromised credentials** (access keys, passwords stolen)
+- **Unauthorized access** (someone logged in who shouldn't)
+- **Resource abuse** (crypto mining, spam servers)
+- **Data exposure** (public S3 buckets, open databases)
+- **Privilege escalation** (attacker gains admin access)
+- **Resource deletion** (someone deleting cloud resources)
+- **Unusual API activity** (automated attacks, enumeration)
+- **Cost spike** (sudden huge bill from unauthorized usage)
+
+---
+
+## Severity Levels
+
+### CRITICAL (Act in 15 minutes)
+- Root/admin account compromised
+- Production data publicly exposed
+- Active crypto mining or resource abuse
+- Mass resource deletion happening
+- Billing spike over $10K/day
+
+### HIGH (Act in 1 hour)
+- User account with elevated privileges compromised
+- Sensitive data potentially exposed
+- Unauthorized VM/instance creation
+- Security group changes exposing services
+
+### MEDIUM (Act in 4 hours)
+- Suspicious login from new location
+- Failed API calls spike
+- Minor misconfiguration detected
+
+-----------------------------------------------------------------
+
+## General Cloud Incident Response
+
+### STEP 1: Initial Assessment (First 10 minutes)
+
+**Gather basic information:**
+```
+- Which cloud platform? (AWS/Azure/GCP)
+- What triggered the alert?
+- Which account/subscription/project?
+- What resource is affected? (VM, storage, database, etc.)
+- When did activity start?
+- Is it still happening?
+
+
+**Quick severity check:**
+
+- Is production affected?
+- Is sensitive data exposed?
+- Are costs spiking?
+- Is admin access compromised?
+- Can we see the attacker's actions?
+
+
+-----------------------------------------------------------------------
+
+### STEP 2: Immediate Containment (Next 10 minutes)
+
+**Priority actions:**
+
+**If credentials compromised:**
+- Disable the compromised user/service account
+- Rotate access keys immediately
+- Revoke active sessions
+- Enable MFA if not already on
+
+**If resources being abused:**
+- Stop/terminate unauthorized instances
+- Block malicious IPs at security groups/firewall
+- Disable compromised API keys
+- Snapshot affected resources for forensics
+
+**If data exposed:**
+- Remove public access immediately
+- Enable logging if disabled
+- Take snapshot before changes
+- Document current state
+
+------------------------------------------------------------------------
+
+☁️ AWS Incident Response ☁️
+
+## Common AWS Alerts
+
+**GuardDuty Findings:**
+- Unusual API calls
+- Compromised instance
+- Bitcoin mining
+- Unauthorized access
+- Credential exfiltration
+
+**CloudTrail Alerts:**
+- Root account usage
+- Console login from new IP
+- Access key created
+- Security group changed
+- S3 bucket made public
+
+## AWS Investigation Steps
+
+### Check Who Did What
+
+**View recent CloudTrail events:**
+```bash
+# Check recent activity
+aws cloudtrail lookup-events --max-results 50
+
+# Check specific user activity
+aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=USERNAME
+
+# Check activity from specific IP
+aws cloudtrail lookup-events --lookup-attributes AttributeKey=SourceIPAddress,AttributeValue=IP_ADDRESS
+
+
+**Check IAM user activity:**
+... bash
+# List access keys for user
+aws iam list-access-keys --user-name USERNAME
+
+# Get user details
+aws iam get-user --user-name USERNAME
+
+# Check last used
+aws iam get-access-key-last-used --access-key-id AKIAXXXXXX
+
+
+### Check What's Running
+
+**List EC2 instances:**
+... bash
+# All running instances
+aws ec2 describe-instances --filters "Name=instance-state-name,Values=running"
+
+# Recently launched
+aws ec2 describe-instances --query 'Reservations[].Instances[?LaunchTime>=`2024-12-08`]'
+
+
+**Check for crypto mining:**
+... bash
+# High CPU instances
+aws cloudwatch get-metric-statistics --namespace AWS/EC2 --metric-name CPUUtilization --dimensions Name=InstanceId,Value=i-xxxxx --start-time 2024-12-08T00:00:00Z --end-time 2024-12-08T23:59:59Z --period 3600 --statistics Average
+...
+
+### Check Data Exposure
+
+**Check S3 bucket permissions:**
+.. bash
+# List all buckets
+aws s3 ls
+
+# Check if bucket is public
+aws s3api get-bucket-acl --bucket BUCKET_NAME
+
+# Check bucket policy
+aws s3api get-bucket-policy --bucket BUCKET_NAME
+...
+
+## AWS Containment Actions
+
+### Disable Compromised User
+.. bash
+# Disable access keys
+aws iam update-access-key --access-key-id AKIAXXXXXX --status Inactive --user-name USERNAME
+
+# Delete access key
+aws iam delete-access-key --access-key-id AKIAXXXXXX --user-name USERNAME
+
+# Disable console access
+aws iam delete-login-profile --user-name USERNAME
+...
+
+### Stop Unauthorized Resources
+... bash
+# Stop EC2 instance
+aws ec2 stop-instances --instance-ids i-xxxxx
+
+# Terminate instance (if malicious)
+aws ec2 terminate-instances --instance-ids i-xxxxx
+
+# Delete security group rule
+aws ec2 revoke-security-group-ingress --group-id sg-xxxxx --ip-permissions IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=0.0.0.0/0}]
+
+
+### Secure S3 Bucket
+.. bash
+# Remove public access
+aws s3api put-public-access-block --bucket BUCKET_NAME --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+
+# Enable versioning (if not enabled)
+aws s3api put-bucket-versioning --bucket BUCKET_NAME --versioning-configuration Status=Enabled
+
+
+### Enable Logging (if missing)
+bash
+# Enable CloudTrail
+aws cloudtrail create-trail --name security-trail --s3-bucket-name BUCKET_NAME
+
+# Start logging
+aws cloudtrail start-logging --name security-trail
+
+# Enable S3 access logging
+aws s3api put-bucket-logging --bucket BUCKET_NAME --bucket-logging-status file://logging.json
+
+
+## AWS Investigation Checklist
+
+
+- Check CloudTrail for suspicious API calls
+- Review GuardDuty findings
+- Check IAM users and access keys
+- Review EC2 instances (especially new ones)
+- Check security group changes
+- Review S3 bucket permissions
+- Check billing for cost spikes
+- Look for new IAM roles/policies
+- Check Lambda functions for backdoors
+- Review VPC flow logs
+
+
+--------------------------------------------------------------------------------------------------
+
+💨 Azure Incident Response 💨
+
+## Common Azure Alerts
+
+**Azure Security Center:**
+- Suspicious login activity
+- VM anomaly detected
+- Resource exposed to internet
+- Malware detected
+- Unusual application activity
+
+**Azure AD Sign-ins:**
+- Failed sign-in attempts
+- Sign-in from unfamiliar location
+- Impossible travel
+- Anonymous IP address
+
+## Azure Investigation Steps
+
+### Check User Activity
+
+**View sign-in logs:**
+```powershell
+# Connect to Azure AD
+Connect-AzureAD
+
+# Get recent sign-ins for user
+Get-AzureADAuditSignInLogs -Filter "userPrincipalName eq 'user@domain.com'" -Top 50
+
+# Check failed sign-ins
+Get-AzureADAuditSignInLogs -Filter "status/errorCode ne 0" -Top 50
+
+
+**Check what user did:**
+... powershell
+# Azure Activity Log
+Get-AzActivityLog -StartTime (Get-Date).AddDays(-7) -MaxRecord 100
+
+# Filter by user
+Get-AzActivityLog -Caller "user@domain.com" -StartTime (Get-Date).AddDays(-1)
+
+
+### Check Resources
+
+**List virtual machines:**
+```powershell
+# All VMs
+Get-AzVM
+
+# Recently created
+Get-AzVM | Where-Object {$_.TimeCreated -gt (Get-Date).AddDays(-1)}
+
+# Check VM status
+Get-AzVM -Status | Select-Object Name, PowerState, Location
+
+
+**Check storage accounts:**
+... powershell
+# List storage accounts
+Get-AzStorageAccount
+
+# Check public access
+Get-AzStorageAccount | Select-Object StorageAccountName, AllowBlobPublicAccess
+
+
+### Check Network Security
+
+**Review network security groups:**
+... powershell
+# List NSGs
+Get-AzNetworkSecurityGroup
+
+# Check NSG rules
+Get-AzNetworkSecurityGroup -Name "NSG-NAME" | Get-AzNetworkSecurityRuleConfig
+...
+
+## Azure Containment Actions
+
+### Disable Compromised User
+powershell
+# Disable user account
+Set-AzureADUser -ObjectId USER_ID -AccountEnabled $false
+
+# Revoke refresh tokens
+Revoke-AzureADUserAllRefreshToken -ObjectId USER_ID
+
+# Reset password
+Set-AzureADUserPassword -ObjectId USER_ID -Password $newPassword
+
+
+### Stop Unauthorized Resources
+.. powershell
+# Stop VM
+Stop-AzVM -ResourceGroupName "RG-NAME" -Name "VM-NAME" -Force
+
+# Delete VM (if malicious)
+Remove-AzVM -ResourceGroupName "RG-NAME" -Name "VM-NAME" -Force
+
+# Remove public IP
+Remove-AzPublicIpAddress -ResourceGroupName "RG-NAME" -Name "IP-NAME" -Force
+
+
+### Secure Storage
+```powershell
+# Disable public access
+Set-AzStorageAccount -ResourceGroupName "RG-NAME" -Name "STORAGE-NAME" -AllowBlobPublicAccess $false
+
+# Enable blob soft delete
+Enable-AzStorageBlobDeleteRetentionPolicy -ResourceGroupName "RG-NAME" -StorageAccountName "STORAGE-NAME" -RetentionDays 30
+
+
+### Block IP Address
+```powershell
+# Add NSG rule to block IP
+$nsg = Get-AzNetworkSecurityGroup -Name "NSG-NAME" -ResourceGroupName "RG-NAME"
+Add-AzNetworkSecurityRuleConfig -Name "Block-Malicious-IP" -NetworkSecurityGroup $nsg -Access Deny -Protocol * -Direction Inbound -Priority 100 -SourceAddressPrefix "MALICIOUS_IP" -SourcePortRange * -DestinationAddressPrefix * -DestinationPortRange *
+Set-AzNetworkSecurityGroup -NetworkSecurityGroup $nsg
+
+
+## Azure Investigation Checklist
+
+- Check Azure AD sign-in logs
+- Review Azure Activity Log
+- Check Security Center alerts
+- Review Virtual Machines (new/changed)
+- Check storage account permissions
+- Review NSG rule changes
+- Check billing for cost spikes
+- Look for new service principals
+- Check Key Vault access
+- Review Azure AD audit logs
+
+
+----------------------------------------------------------------------------------------------
+
+ ⛅️ GCP Incident Response ⛅️
+
+## Common GCP Alerts
+
+**Security Command Center:**
+- Public bucket detected
+- Firewall rule allows all traffic
+- Admin activity anomaly
+- Crypto mining detected
+- Open SSH/RDP port
+
+**Cloud Audit Logs:**
+- Admin activity
+- Data access
+- System events
+- Policy changes
+
+## GCP Investigation Steps
+
+### Check Activity Logs
+
+**View audit logs:**
+... bash
+# Recent admin activity
+gcloud logging read "protoPayload.serviceName=compute.googleapis.com" --limit 50 --format json
+
+# Specific user activity
+gcloud logging read "protoPayload.authenticationInfo.principalEmail=user@domain.com" --limit 50
+
+# Failed operations
+gcloud logging read "protoPayload.status.code!=0" --limit 50
+
+
+### Check Resources
+
+**List compute instances:**
+... bash
+# All instances
+gcloud compute instances list
+
+# Recently created
+gcloud compute instances list --filter="creationTimestamp>2024-12-08"
+
+# Check instance details
+gcloud compute instances describe INSTANCE_NAME --zone ZONE
+
+
+**Check storage buckets:**
+```bash
+# List buckets
+gsutil ls
+
+# Check bucket IAM policy
+gsutil iam get gs://BUCKET_NAME
+
+# Check if bucket is public
+gsutil iam get gs://BUCKET_NAME | grep allUsers
+... 
+
+### Check Network
+
+**Review firewall rules:**
+... bash
+# List firewall rules
+gcloud compute firewall-rules list
+
+# Check for overly permissive rules
+gcloud compute firewall-rules list --filter="sourceRanges:0.0.0.0/0"
+
+# Describe specific rule
+gcloud compute firewall-rules describe RULE_NAME
+...
+
+## GCP Containment Actions
+
+### Disable Compromised User
+```bash
+# Remove IAM policy binding
+gcloud projects remove-iam-policy-binding PROJECT_ID --member="user:user@domain.com" --role="roles/editor"
+
+# Disable service account
+gcloud iam service-accounts disable SERVICE_ACCOUNT_EMAIL
+...
+
+### Stop Unauthorized Resources
+```bash
+# Stop instance
+gcloud compute instances stop INSTANCE_NAME --zone ZONE
+
+# Delete instance
+gcloud compute instances delete INSTANCE_NAME --zone ZONE
+
+# Delete disk
+gcloud compute disks delete DISK_NAME --zone ZONE
+...
+
+### Secure Storage Bucket
+... bash
+# Remove public access
+gsutil iam ch -d allUsers gs://BUCKET_NAME
+
+# Set uniform bucket-level access
+gsutil uniformbucketlevelaccess set on gs://BUCKET_NAME
+
+# Enable versioning
+gsutil versioning set on gs://BUCKET_NAME
+...
+
+### Block Firewall Rule
+... bash
+# Delete overly permissive rule
+gcloud compute firewall-rules delete RULE_NAME
+
+# Create rule to block specific IP
+gcloud compute firewall-rules create block-malicious-ip --action DENY --rules tcp,udp,icmp --source-ranges MALICIOUS_IP --priority 100
+...
+
+## GCP Investigation Checklist
+
+...
+- Check Cloud Audit Logs
+- Review Security Command Center findings
+- Check IAM policy changes
+- Review Compute Engine instances
+- Check storage bucket permissions
+- Review firewall rule changes
+- Check billing for cost spikes
+- Look for new service accounts
+- Check Cloud Functions for backdoors
+- Review VPC flow logs
+
+
+----------------------------------------------------------------------------------
+
+ ⠿ Common Cloud Attack Patterns
+
+### 1. Compromised Access Keys
+**What happens:**
+- Attacker finds exposed AWS keys in GitHub, config files
+- Uses keys to access cloud resources
+- Creates new resources (crypto miners, spam servers)
+
+**Signs:**
+- API calls from unusual locations
+- New resources you didn't create
+- Cost spike in billing
+- GuardDuty alerts
+
+**Response:**
+- Disable access keys immediately
+- Check CloudTrail/Activity Logs for what was done
+- Delete unauthorized resources
+- Rotate all keys
+
+### 2. Public S3 Bucket / Storage
+**What happens:**
+- Misconfigured storage made public
+- Sensitive data exposed to internet
+- Data potentially downloaded by attackers
+
+**Signs:**
+- Security scan alerts
+- Increased data transfer costs
+- Anonymous access in logs
+
+**Response:**
+- Remove public access immediately
+- Check access logs for who downloaded
+- Notify stakeholders if data breach
+- Enable proper access controls
+
+### 3. Crypto Mining
+**What happens:**
+- Attacker launches VMs to mine cryptocurrency
+- Uses your resources for profit
+- Huge cost spike
+
+**Signs:**
+- Unexpected VM instances
+- High CPU usage alerts
+- Massive billing increase
+- New regions being used
+
+**Response:**
+- Stop/terminate unauthorized instances
+- Block attacker's access
+- Check how they got in
+- Enable billing alerts
+
+### 4. Privilege Escalation
+**What happens:**
+- Attacker gains admin access
+- Can do anything in your cloud
+- Create backdoors, steal data
+
+**Signs:**
+- IAM role/policy changes
+- New admin users created
+- Unusual admin API activity
+
+**Response:**
+- Disable compromised accounts
+- Review all IAM changes
+- Remove unauthorized permissions
+- Check for backdoor accounts
+
+-------------------------------------------------------------------------
+
+👀  Cloud Investigation Quick Queries
+
+### AWS CloudTrail Important Events
+... bash
+# Root account usage (VERY BAD)
+aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=root
+
+# New users created
+aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=CreateUser
+
+# Security group changes
+aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=AuthorizeSecurityGroupIngress
+
+# S3 bucket policy changes
+aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=PutBucketPolicy
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+🔦 Azure Activity Queries
+powershell
+# Resource creation events
+Get-AzActivityLog -ResourceProvider "Microsoft.Compute" -StartTime (Get-Date).AddDays(-1) | Where-Object {$_.OperationName -like "*write*"}
+
+# Security group changes
+Get-AzActivityLog -ResourceProvider "Microsoft.Network" -StartTime (Get-Date).AddDays(-1) | Where-Object {$_.OperationName -like "*securityRules*"}
+
+
+### GCP Important Events
+... bash
+# VM creation
+gcloud logging read "protoPayload.methodName=v1.compute.instances.insert" --limit 20
+
+# Firewall changes
+gcloud logging read "protoPayload.methodName=v1.compute.firewalls.patch" --limit 20
+
+# IAM changes
+gcloud logging read "protoPayload.methodName=SetIamPolicy" --limit 20
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+☑️ Universal Cloud Incident Checklist
+
+### First 15 Minutes
+
+- Identify which cloud (AWS/Azure/GCP)
+- Determine severity
+- Disable compromised credentials
+- Stop active abuse (if happening)
+- Create incident ticket
+- Notify SOC Lead
+- Take snapshots for forensics
+
+
+### First Hour
+
+- Review audit logs thoroughly
+- Identify all affected resources
+- Document attacker's actions
+- Check billing for cost impact
+- Look for persistence mechanisms
+- Block attacker IPs/access
+- Notify security manager
+
+
+### First 4 Hours
+
+- Complete investigation
+- Remove all unauthorized access
+- Delete malicious resources
+- Secure exposed data
+- Enable missing security controls
+- Notify stakeholders
+- Begin root cause analysis
+
+### Recovery Phase
+
+- Rotate all credentials
+- Enable MFA everywhere
+- Review IAM permissions
+- Enable logging if disabled
+- Set up billing alerts
+- Implement security best practices
+- Document lessons learned
+
+
+----------------------------------------------------------------------
+
+📞 When to Escalate
+
+**Escalate to SOC Lead:**
+- Any cloud compromise (always notify)
+- Cost spike over $1,000
+- Production resources affected
+- Unable to contain incident
+
+**Escalate to Security Manager:**
+- Admin/root account compromised
+- Data exposure confirmed
+- Multiple accounts/projects affected
+- Cost spike over $10,000
+
+**Escalate to CISO:**
+- Widespread compromise
+- Customer data exposed
+- Regulatory notification required
+- Major business impact
+
+--------------------------------------------------------------------------
+
+🚦 Cloud Security Best Practices
+
+**Prevention Tips:**
+- Enable MFA on all accounts
+- Use least privilege access
+- Never share access keys
+- Enable audit logging
+- Set up billing alerts
+- Use security scanning tools
+- Regular access reviews
+- Encrypt sensitive data
+- Use service accounts properly
+- Keep security groups restrictive
+
+**Common Mistakes:**
+- Root account without MFA
+- Access keys in code/GitHub
+- Public S3 buckets/storage
+- 0.0.0.0/0 firewall rules
+- Not monitoring billing
+- No audit logging
+- Overly permissive IAM
+- No security scanning
+
+----------------------------------------------------------------
+
+##Key Takeaways
+
+**Remember:**
+1. Cloud credentials are the keys to the kingdom - protect them
+2. Enable logging on everything - you'll need it
+3. Check billing regularly - cost spikes = problems
+4. Least privilege access always
+5. Public storage = bad (unless intentional)
+
+**Quick Response:**
+1. Disable compromised access
+2. Check audit logs
+3. Stop unauthorized resources
+4. Secure exposed data
+5. Document everything
+
+**Emergency Contact:** SOC Lead [PHONE]
+
+**Keep this handy for cloud incidents!**
