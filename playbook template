@@ -1,0 +1,53 @@
+#  Playbook: [System/Scenario Name]
+
+**Owner:** [Team Name or Individual Name]
+**Last Updated:** [YYYY-MM-DD]
+**Version:** 1.0
+
+---
+
+##  Goal
+
+[Clearly state the purpose of this playbook. What action does it guide the user through?]
+
+* *Example:* To successfully deploy a new version of the 'Inventory Management Service' to production without downtime.
+
+##  Prerequisites / Assumptions
+
+* [List necessary permissions, tools, or prior steps required.]
+* [e.g., User must have 'admin' privileges on the CI/CD pipeline.]
+* [e.g., A successful build must exist in the 'staging' environment.]
+* [e.g., All dependent services (Service A, B) must be operational.]
+
+## 🚦 Triage / Health Check
+
+**Before starting, verify the following:**
+
+1.  **Service Health:** [Check dashboard link] shows all green.
+2.  **Resource Utilization:** CPU/Memory below [X]% on critical servers.
+3.  **Required Artifacts:** Deployment image `[Image_Name:Tag]` is available in the registry.
+
+## ⚙️ Step-by-Step Procedure
+
+### Phase 1: Preparation
+1.  **[Action]:** [Detailed description of step 1, e.g., Create a maintenance window ticket: [Link to JIRA/Tool]].
+2.  **[Action]:** [Detailed description of step 2, e.g., Notify internal stakeholders in #ops-status channel.]
+    * *Expected Outcome:* Stakeholders acknowledge the planned work.
+
+### Phase 2: Execution
+3.  **[Action]:** [Detailed step for the main action, e.g., Run deployment command: `kubectl apply -f inventory-prod.yaml`].
+    * *Verification:* Check command output for 'successfully configured'.
+4.  **[Action]:** [Wait for rollout to complete, e.g., Monitor pods until all are running the new version.]
+    * *Verification:* `kubectl get pods -l app=inventory` shows new version tag.
+
+### Phase 3: Post-Execution / Rollback
+5.  **Smoke Test:** [Run a high-value test, e.g., Perform a test transaction via the /v1/inventory/check endpoint.]
+6.  **Decommission:** [Clean up resources, e.g., Close the maintenance window ticket.]
+
+----------------------------------------------------------------------------------
+
+## Rollback Procedure (If something goes wrong)
+
+* **Trigger:** If Step [X] fails, or if a severe spike in errors is seen post-deployment.
+* **Action:** Run the rollback command: `kubectl rollout undo deployment inventory-service`.
+* **Verification:** Confirm the old image tag is running and errors subside.
